@@ -1,0 +1,97 @@
+---
+title: "Ethoscope Analysis Pipeline (Yoked Controls) - Abhilash"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+# Step 1: Use ethoscope data and generate ethoscope specific sorted and binned data. Use the function datSortBin.R. Input for this function must be .txt file from the ethoscope module.
+
+rm(list=ls())
+
+df <- read.delim("~/Desktop/2_16_23_24hrSD_220s.txt", header = T)
+
+datSortBin <- function (input, n.days, cat.names = c("Control", "Experimental"), ethoscope.id, mins.trim) {
+  library(stringr)
+  
+  dat <- list()
+  
+  for.df <- list()
+  
+  for (i in 1:length(ethoscope.id)) {
+  txt <- paste(ethoscope.id[i], sep = "")
+  for.df[[i]] <- input[str_detect(string = input$id, pattern = txt, negate = FALSE),]
+}
+  
+  for (i in 1:length(for.df)) {
+    df <- for.df[[i]]
+    
+    t = as.data.frame(table(df$id))
+    tt = subset(t, Freq != 0)
+    etho.names <- as.vector(tt[,1])
+    
+    n.time = n.days*((24*60*60)/10)
+    # output.bin = 10/60
+    
+    ethoscope <- list()
+    
+    for (j in 1:length(etho.names)) {
+      ethoscope[[j]] <- subset(df, id == etho.names[j], select = c("t","max_velocity"))
+    }
+    
+    
+    dat.etho <- matrix(NA, nrow = 1440*6*(n.days+10), ncol = length(ethoscope))
+    
+    for (ii in 1:length(ethoscope)) {
+      for (iii in 1:length(mins.trim)) {
+        
+        trimmed.dat <- ethoscope[[ii]][-c(1:(mins.trim[iii] * 6)),]
+        dat.etho[1:length(trimmed.dat[,1]),ii] <- trimmed.dat[,"max_velocity"]
+        
+      }
+  }
+    
+    eth.names <- strsplit(etho.names, split = "|", fixed = T)
+  
+  col.names.etho <- c()
+  for (kk in 1:length(dat.etho[1,])) {
+    col.names.etho[kk] <- paste("Ind", eth.names[[kk]][2], sep = "")
+  }
+  
+  colnames(dat.etho) <- col.names.etho
+  
+  out.time <- as.matrix(seq(10, (length(dat.etho[,1])*10), by = 10))
+  colnames(out.time) <- c("Time since start (sec)")
+    
+  dat[[i]] <- cbind(out.time, dat.etho)
+    
+  }
+  names(dat) <- cat.names
+  return(dat)
+  
+  
+}
+
+df.sorted <- datSortBin(input = df, n.days = 6, cat.names = c("Eth21", "Eth20", "Eth22", "Eth28", "Eth8", "Eth15", "Eth19","Eth14"), ethoscope.id = c("021ff0",	"020d02",	"02241c",	"02863e",	"0084cd",	"01511e",	"019f4e",	"014158"), mins.trim = c(c(1272,	1269,	1268,	1268,	1267,	1267,	1267,	1265)+60))
+
+saveRDS(df.sorted, "~/Desktop/Yoked_sortedMaxVelocity_10sec_NEW.rds")
+
+```
+
+
+```{r}
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
